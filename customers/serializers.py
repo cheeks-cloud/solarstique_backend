@@ -11,6 +11,13 @@ class BaseSerializer(serializers.ModelSerializer):
             for field_name in remove_fields:
                 self.fields.pop(field_name)
 
+#handle serialization and deserialization of user
+class FndUserSerializer(serializers.ModelSerializer):
+     
+     class Meta:
+        model = FndUser
+        fields = ('email', 'username', 'first_name', 'balance')
+
 
 #SERIALIZER TO GET USER PROFILE
 class UserProfileSerializer(BaseSerializer):

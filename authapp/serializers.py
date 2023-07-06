@@ -82,7 +82,7 @@ class FndUserSerializer(serializers.ModelSerializer):
     )
      class Meta:
         model = FndUser
-        fields = ('email', 'username', 'token', 'password')
+        fields = ('email', 'username', 'token', 'password', 'balance')
 
 #update the user
 def update(self,instance,validated_data):

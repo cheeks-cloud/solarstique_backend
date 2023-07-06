@@ -5,11 +5,13 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import GenericAPIView,RetrieveUpdateAPIView
 from authapp.models import FndUser
+from authapp.renderes import UserJSONRenderer
 from .exceptions import *
 import json
 from .models import*
-from .serializers import (UserProfileSerializer,UpdateUserProfileSerializer,UserListSerializer)
+from .serializers import (UserProfileSerializer,UpdateUserProfileSerializer,FndUserSerializer)
 # Create your views here.
 
 #class to get user profile
@@ -96,4 +98,15 @@ class UserListView(ListAPIView):
         return Response({
             'profiles': serializer.data
         }, status=status.HTTP_200_OK)
+
+
+#get a user and update
+class FndUserRetrieveUpdateApiView(RetrieveUpdateAPIView):
+    renderer_classes = (UserJSONRenderer,)
+    serializer_class = FndUserSerializer
+
+    def retrieve(self, request, username):
+        user = FndUser.objects.get(username=username)
+        serializer = self.serializer_class(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 

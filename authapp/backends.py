@@ -2,12 +2,16 @@ import jwt
 from django.conf import settings
 from rest_framework import authentication, exceptions
 from .models import FndUser
+import logging
 
 #    This class will handle users' authentication
 class JWTAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
-        prefix = 'Bearer'
-        header = authentication.get_authorization_header(request).split()
+        prefix = 'Token'
+        header = authentication.get_authorization_header(request).split(' ')
+
+        logger = logging.getLogger(__name__)
+        logger.info('The value is: %s', header)
 
         if not header:
             return None

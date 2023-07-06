@@ -1,64 +1,65 @@
-from django.shortcuts import render
-
-# Create your views here.
 from rest_framework import generics, permissions
 from rest_framework.response import Response
-
 from .models import *
-from .serializers import CarbonCreditSerializer, CarbonCreditPurchaseSerializer
+from .serializers import *
+from django.http import JsonResponse
+from django.views import View
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 
 
-class CarbonCreditListCreateView(generics.ListCreateAPIView):
-    queryset = CarbonCredit.objects.all()
-    serializer_class = CarbonCreditSerializer
-    permission_classes = [permissions.IsAuthenticated]
+# __gte is a lookup filter that stands for "greater than or equal to
 
-    def perform_create(self, serializer):
-        serializer.save(seller=self.request.user)
+@login_required
+@require_POST
+def buy_carbon_credits(request):
+    quantity = float(request.POST.get('quantity'))
+    price = float(request.POST.get('price'))
+
+    # Calculate the total cost
+    total_cost = quantity * price
+
+    # Check if the user has enough credits remaining
+    user_credits = get_object_or_404(CarbonCredit, credits_remaining__gte=quantity)
+
+    # Deduct the credits from the user's balance
+    user_credits.credits_remaining -= quantity
+    user_credits.save()
+
+    # Create a purchase record
+    purchase = CarbonCreditPurchase.objects.create(
+        buyer=request.user,
+        credit_purchased=user_credits,
+        credits=quantity
+    )
+
+    return JsonResponse({'message': 'Successfully bought carbon credits.'})
+
+@login_required
+@require_POST
+def sell_carbon_credits(request):
+    quantity = float(request.POST.get('quantity'))
+    price = float(request.POST.get('price'))
+
+    # Check if the user has enough credits to sell
+    user_credits = get_object_or_404(CarbonCredit, credits_remaining__gte=quantity)
+
+    # Add the credits to the user's balance
+    user_credits.credits_remaining += quantity
+    user_credits.save()
+
+    # Create a sale record
+    sale = CarbonCreditSale.objects.create(
+        seller=request.user,
+        credit_purchased=user_credits,
+        credits=quantity
+    )
+
+    return JsonResponse({'message': 'Successfully sold carbon credits.'})
 
 
-class CarbonCreditDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = CarbonCredit.objects.all()
-    serializer_class = CarbonCreditSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class CarbonCreditPurchaseCreateView(generics.CreateAPIView):
-    serializer_class = CarbonCreditPurchaseSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        credit_id = request.data.get('credit_id')
-        credit = CarbonCredit.objects.get(id=credit_id)
-
-        if credit.is_sold:
-            return Response({'error': 'This credit has already been sold.'}, status=400)
-
-        credit_price = credit.price_per_credit
-        credit_amount = credit.credit_sold
-        buyer = request.user
-        purchase_total = credit_price * credit_amount
-
-        if buyer.balance < purchase_total:
-            return Response({'error': 'Insufficient balance to make purchase.'}, status=400)
-
-        buyer.balance -= purchase_total
-        credit.is_sold = True
-        credit.sold_to = buyer
-        buyer.save()
-        credit.save()
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(buyer=buyer, credit=credit)
-
-        return Response(serializer.data)
-    
-
-class CarbonCreditPurchaseListView(generics.ListAPIView):
-    serializer_class = CarbonCreditPurchaseSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return CarbonCreditPurchase.objects.filter(buyer=self.request.user)
 

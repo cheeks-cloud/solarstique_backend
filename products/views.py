@@ -1,64 +1,68 @@
-from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import *
 from .serializers import *
 from rest_framework import generics
+import jwt
+from django.conf import settings
+import logging
 
-#retrieves a list of all products or creates a new product.
+
+# retrieves a list of all products or creates a new product.
+
+
 class ProductList(generics.ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    
-#retrieves, updates or deletes a specific product
+
+
+# retrieves, updates or deletes a specific product
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
 # is responsible for listing all the purchases and creating a new purchase
+
+
 class PurchaseList(generics.ListCreateAPIView):
     queryset = Purchase.objects.all()
     serializer_class = PurchaseSerializer
 
-#is responsible for retrieving, updating, and deleting a single purchase
+# is responsible for retrieving, updating, and deleting a single purchase
+
+
 class PurchaseDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Purchase.objects.all()
     serializer_class = PurchaseSerializer
 
-    def put(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
 
-        # Update product quantity if purchase quantity changed
-        if 'quantity' in request.data:
-            quantity_diff = request.data['quantity'] - instance.quantity
-            instance.product.quantity -= quantity_diff
-            instance.product.save()
+    def post(self, request):
+        if request.method == 'POST':
 
-        return Response(serializer.data)
+            payload = json.loads(request.body)
+            cartItems = payload.get('products', [])
 
 
+            auth_header = request.headers.get('Authorization')
+            decoded_token = jwt.decode(auth_header.split(' ')[1], settings.SECRET_KEY, algorithms=['HS256'])
 
+            logger = logging.getLogger(__name__)
 
+            try:
 
+                user = FndUser.objects.get(email=decoded_token['user_data']['email'])
+                # Process the products
+                for item in cartItems:
+                    productId = item.get('productId')
+                    quantity = item.get('quantity')
 
+                    product = Product.objects.get(id=productId)
 
-
-
-
-
-
-
-
-
-
-
-# from django.db.models import Sum, Count
-
-# user = FndUser.objects.get(username='example_user')
-# total_quantity = Purchase.objects.filter(user=user).aggregate(Sum('quantity'))['quantity__sum']
-# total_cost = Purchase.objects.filter(user=user).aggregate(Sum('cost'))['cost__sum']
-# num_purchases = Purchase.objects.filter(user=user).count()
-# num_remaining_products = Product.objects.aggregate(Sum('quantity'))['quantity__sum']
+                    # Create a new Purchase object
+                    purchase = Purchase(user=user, product=product, quantity=quantity)
+                    purchase.create_purchase(self)
+             # Redirect or display success message
+             
+                return JsonResponse(PurchaseSerializer(purchase).data, safe=False)
+            except (FndUser.DoesNotExist, Product.DoesNotExist):
+                return HttpResponse("User or product does not exist.")

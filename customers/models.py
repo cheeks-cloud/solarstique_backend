@@ -14,6 +14,7 @@ class Profile(models.Model):
     user = models.OneToOneField("authapp.FndUser", 
     related_name="profile",on_delete=models.CASCADE)
     first_name = models.CharField(max_length=30, blank=True)
+
     last_name = models.CharField(max_length=30, blank=True)
     bio = models.TextField(max_length=500, blank=True)
     image = CloudinaryField(
@@ -23,6 +24,7 @@ class Profile(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # new field for balance
 
     class Meta:
         ordering = ['created_at', ]
@@ -32,12 +34,24 @@ class Profile(models.Model):
     @property
     def fetch_username(self):
         return self.user.username
+    
+    @property
+    def fetch_first_name(self):
+        return self.user.first_name.split(' ')[0]
+    @property
+    def fetch_last_name(self):
+        return self.user.first_name.split(' ')[1]
+
 
     @property
     def fetch_image(self):
         img_url = CloudinaryImage(str(self.image)).build_url(
             width=80, height=120, crop='fill')
         return img_url
+
+    @property
+    def fetch_balance(self):
+        return self.user.balance
 
 
 @receiver(post_save, sender=FndUser)

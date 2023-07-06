@@ -9,14 +9,14 @@ from django.contrib.auth.models import (
 
 # Create your models here.
 class FndUserManager(BaseUserManager):
-    def create_user(self, username, email, first_name, password=None):
+    def create_user(self, username, email, first_name, password=None, balance=0):
         if username is None:
             raise TypeError('Users must have a username.')
 
         if email is None:
             raise TypeError('Users must have an email address.')
 
-        fndUser = self.model(username=username, email=self.normalize_email(email), first_name=first_name)
+        fndUser = self.model(username=username, email=self.normalize_email(email), first_name=first_name,balance=balance)
         fndUser.set_password(password)
         fndUser.save()
 
@@ -26,7 +26,7 @@ class FndUserManager(BaseUserManager):
       if password is None:
           raise TypeError('Superusers must have a password.')
 
-      user = self.create_user(username, email, password)
+      user = self.create_user(username, email, username, password)
       user.is_superuser = True
       user.is_staff = True
       user.is_verified=True

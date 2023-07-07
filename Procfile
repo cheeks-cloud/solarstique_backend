@@ -1,1 +1,1 @@
-web: gunicorn 'solarstique.wsgi'
+web: gunicorn solarstique.wsgi
